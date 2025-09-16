@@ -14,4 +14,4 @@ class ReviewRead(ReviewBase):
     product_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
