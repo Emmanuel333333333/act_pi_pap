@@ -15,6 +15,19 @@ import {
     BarChart3
 } from 'lucide-react';
 
+interface Product {
+    id: number;
+    name: string;
+    description: string;
+    category_id: number;
+    category_name?: string;
+}
+
+interface Category {
+    id: number;
+    name: string;
+}
+
 interface Review {
     id: number;
     userName: string;
@@ -23,9 +36,11 @@ interface Review {
     comment: string;
     date: string;
     likes: number;
-    productId: string;
+    productId: number;
     productName: string;
     verified?: boolean;
+    categoryId?: number;
+    categoryName?: string;
 }
 
 interface ReviewFormData {
@@ -33,95 +48,122 @@ interface ReviewFormData {
     rating: number;
     title: string;
     comment: string;
-    productName: string;
+    productId: number;
 }
 
 // Componente principal de la página
 export default function ReviewsPage() {
-    const [reviews, setReviews] = useState<Review[]>([]);
-    const [filteredReviews, setFilteredReviews] = useState<Review[]>([]);
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterRating, setFilterRating] = useState('all');
-    const [sortBy, setSortBy] = useState('newest');
-    const [loading, setLoading] = useState(true);
+    // Datos que corresponden a tu base de datos
+    const dbProducts: Product[] = [
+        { id: 1, name: 'Orbea Alma', description: 'Bicicleta de montaña ligera', category_id: 1 },
+        { id: 2, name: 'Orbea Orca', description: 'Bicicleta de carretera de alto rendimiento', category_id: 1 },
+        { id: 3, name: 'Moto CB 190R 2.0', description: 'Motocicleta deportiva', category_id: 2 },
+        { id: 4, name: 'Moto CB 190R 2.0', description: 'Motocicleta deportiva', category_id: 2 },
+        { id: 5, name: 'Moto Todoterreno', description: 'Motocicleta para todo terreno', category_id: 2 },
+        { id: 6, name: 'Moto Todoterreno', description: 'Motocicleta para todo terreno', category_id: 2 }
+    ];
 
-    // Datos de ejemplo
+    const categories: Category[] = [
+        { id: 1, name: 'Bicicletas' },
+        { id: 2, name: 'Motocicletas' }
+    ];
+
+    // Datos de reseñas de ejemplo adaptados a los productos reales
     const mockReviews: Review[] = [
         {
             id: 1,
             userName: 'María González',
             rating: 5,
-            title: 'Excelente producto, superó expectativas',
-            comment: 'La calidad es excepcional y el servicio al cliente fue perfecto. Llegó antes de lo esperado y en perfectas condiciones. Definitivamente lo recomiendo y volvería a comprarlo.',
+            title: 'Excelente bicicleta para montaña',
+            comment: 'La Orbea Alma es increíblemente ligera y perfecta para rutas de montaña. El rendimiento es excepcional y la calidad de construcción es premium. La recomiendo totalmente para ciclistas serios.',
             date: '2025-09-10',
             likes: 24,
-            productId: 'prod-1',
-            productName: 'iPhone 15 Pro Max',
-            verified: true
+            productId: 1,
+            productName: 'Orbea Alma',
+            verified: true,
+            categoryId: 1,
+            categoryName: 'Bicicletas'
         },
         {
             id: 2,
             userName: 'Carlos Rodríguez',
             rating: 4,
-            title: 'Muy buena relación calidad-precio',
-            comment: 'Producto sólido con buenas características. El envío fue rápido y el empaque excelente. Solo le falta algunas funciones menores que esperaba.',
+            title: 'Muy buena para carretera',
+            comment: 'La Orbea Orca tiene un rendimiento excelente en carretera. Es rápida y cómoda para distancias largas. El único detalle es que requiere un mantenimiento más frecuente.',
             date: '2025-09-08',
             likes: 18,
-            productId: 'prod-2',
-            productName: 'MacBook Air M3',
-            verified: true
+            productId: 2,
+            productName: 'Orbea Orca',
+            verified: true,
+            categoryId: 1,
+            categoryName: 'Bicicletas'
         },
         {
             id: 3,
             userName: 'Ana López',
             rating: 3,
             title: 'Cumple pero sin sorprender',
-            comment: 'El producto está bien para el precio, pero esperaba un poco más. El diseño es atractivo y funciona correctamente, aunque la batería podría durar más.',
+            comment: 'La CB 190R está bien para el precio, pero esperaba un poco más de potencia. Es cómoda para la ciudad y consume poco combustible.',
             date: '2025-09-05',
             likes: 7,
-            productId: 'prod-3',
-            productName: 'AirPods Pro 2',
-            verified: false
+            productId: 3,
+            productName: 'Moto CB 190R 2.0',
+            verified: false,
+            categoryId: 2,
+            categoryName: 'Motocicletas'
         },
         {
             id: 4,
             userName: 'Diego Martínez',
             rating: 5,
-            title: 'Increíble calidad y rendimiento',
-            comment: 'Después de un mes de uso, puedo decir que es una excelente inversión. La calidad de construcción es premium y el rendimiento es excepcional.',
+            title: 'Perfecta para aventuras',
+            comment: 'La moto todoterreno es increíble. He llevado por caminos difíciles y responde perfectamente. La suspensión es excelente y el motor muy confiable.',
             date: '2025-09-03',
             likes: 31,
-            productId: 'prod-4',
-            productName: 'iPad Pro 12.9"',
-            verified: true
+            productId: 5,
+            productName: 'Moto Todoterreno',
+            verified: true,
+            categoryId: 2,
+            categoryName: 'Motocicletas'
         }
     ];
 
+    const [reviews, setReviews] = useState<Review[]>(mockReviews);
+    const [filteredReviews, setFilteredReviews] = useState<Review[]>(mockReviews);
+    const [products, setProducts] = useState<Product[]>(dbProducts);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterRating, setFilterRating] = useState('all');
+    const [filterCategory, setFilterCategory] = useState('all');
+    const [sortBy, setSortBy] = useState('newest');
+    const [loading, setLoading] = useState(false);
+
     // Cargar datos al montar el componente
     useEffect(() => {
-        const loadReviews = async () => {
+        const loadData = async () => {
             setLoading(true);
             try {
-
                 // Simulamos delay de carga
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                setReviews(mockReviews);
-                setFilteredReviews(mockReviews);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                // En una aplicación real, aquí harías las llamadas a tu API
+                // const productsResponse = await fetch('/api/products');
+                // const reviewsResponse = await fetch('/api/reviews');
+                // setProducts(await productsResponse.json());
+                // setReviews(await reviewsResponse.json());
             } catch (error) {
-                console.error('Error loading reviews:', error);
+                console.error('Error loading data:', error);
             } finally {
                 setLoading(false);
             }
         };
 
-        loadReviews();
+        loadData();
     }, []);
 
     // Filtrar y ordenar reseñas
     useEffect(() => {
         filterAndSortReviews();
-    }, [reviews, searchTerm, filterRating, sortBy]);
+    }, [reviews, searchTerm, filterRating, filterCategory, sortBy]);
 
     const filterAndSortReviews = () => {
         let filtered = [...reviews];
@@ -132,13 +174,19 @@ export default function ReviewsPage() {
                 review.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 review.comment.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 review.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                review.userName.toLowerCase().includes(searchTerm.toLowerCase())
+                review.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                review.categoryName?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
 
         // Filtrar por rating
         if (filterRating !== 'all') {
             filtered = filtered.filter(review => review.rating >= parseInt(filterRating));
+        }
+
+        // Filtrar por categoría
+        if (filterCategory !== 'all') {
+            filtered = filtered.filter(review => review.categoryId === parseInt(filterCategory));
         }
 
         // Ordenar
@@ -196,24 +244,28 @@ export default function ReviewsPage() {
             rating: 5,
             title: '',
             comment: '',
-            productName: ''
+            productId: 0
         });
 
         const handleSubmit = async () => {
-            if (!formData.userName || !formData.productName || !formData.title || !formData.comment) {
+            if (!formData.userName || !formData.productId || !formData.title || !formData.comment) {
                 alert('Por favor completa todos los campos');
                 return;
             }
 
             try {
+                const selectedProduct = products.find(p => p.id === formData.productId);
+                const selectedCategory = categories.find(c => c.id === selectedProduct?.category_id);
 
                 const newReview: Review = {
                     ...formData,
-                    id: reviews.length + 1,
+                    id: Math.max(...reviews.map(r => r.id)) + 1,
                     date: new Date().toISOString().split('T')[0],
                     likes: 0,
-                    productId: `prod-${reviews.length + 1}`,
-                    verified: false
+                    productName: selectedProduct?.name || '',
+                    verified: false,
+                    categoryId: selectedProduct?.category_id,
+                    categoryName: selectedCategory?.name
                 };
 
                 setReviews([newReview, ...reviews]);
@@ -223,7 +275,7 @@ export default function ReviewsPage() {
                     rating: 5,
                     title: '',
                     comment: '',
-                    productName: ''
+                    productId: 0
                 });
             } catch (error) {
                 console.error('Error creating review:', error);
@@ -232,7 +284,7 @@ export default function ReviewsPage() {
 
         return (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
                     <h3 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                         Nueva Reseña
                     </h3>
@@ -246,7 +298,7 @@ export default function ReviewsPage() {
                                 type="text"
                                 value={formData.userName}
                                 onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black placeholder-gray-500"
                                 placeholder="Escribe tu nombre"
                             />
                         </div>
@@ -255,13 +307,18 @@ export default function ReviewsPage() {
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 Producto
                             </label>
-                            <input
-                                type="text"
-                                value={formData.productName}
-                                onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                placeholder="¿Qué producto estás reseñando?"
-                            />
+                            <select
+                                value={formData.productId}
+                                onChange={(e) => setFormData({ ...formData, productId: parseInt(e.target.value) })}
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
+                            >
+                                <option value={0} className="text-gray-500">Selecciona un producto</option>
+                                {products.map((product) => (
+                                    <option key={product.id} value={product.id} className="text-black">
+                                        {product.name} - {product.description}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
@@ -284,7 +341,7 @@ export default function ReviewsPage() {
                                 type="text"
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black placeholder-gray-500"
                                 placeholder="Resume tu experiencia en una línea"
                             />
                         </div>
@@ -297,7 +354,7 @@ export default function ReviewsPage() {
                                 value={formData.comment}
                                 onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
                                 rows={4}
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-gray-900"
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none text-black placeholder-gray-500"
                                 placeholder="Comparte los detalles de tu experiencia..."
                             />
                         </div>
@@ -341,6 +398,11 @@ export default function ReviewsPage() {
                             )}
                         </div>
                         <p className="text-sm text-gray-600 font-medium">{review.productName}</p>
+                        {review.categoryName && (
+                            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                                {review.categoryName}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-500 text-sm">
@@ -360,15 +422,10 @@ export default function ReviewsPage() {
             <h3 className="font-bold text-lg text-gray-900 mb-3 line-clamp-2">{review.title}</h3>
             <p className="text-gray-700 mb-4 leading-relaxed line-clamp-3">{review.comment}</p>
 
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors group/button">
-                    <ThumbsUp size={16} className="group-hover/button:scale-110 transition-transform" />
-                    <span className="font-medium">{review.likes}</span>
-                    <span className="text-sm">útil</span>
-                </button>
-                <button className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors">
-                    <MessageSquare size={16} />
-                    <span className="text-sm font-medium">Responder</span>
+            <div className="flex items-center justify-between">
+                <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-600 transition-colors">
+                    <ThumbsUp size={16} />
+                    <span className="text-sm font-medium">{review.likes} útiles</span>
                 </button>
             </div>
         </div>
@@ -379,12 +436,6 @@ export default function ReviewsPage() {
         const averageRating = reviews.length > 0
             ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length)
             : 0;
-
-        const ratingDistribution = [5, 4, 3, 2, 1].map(rating => ({
-            rating,
-            count: reviews.filter(r => r.rating === rating).length,
-            percentage: reviews.length > 0 ? (reviews.filter(r => r.rating === rating).length / reviews.length) * 100 : 0
-        }));
 
         const verifiedCount = reviews.filter(r => r.verified).length;
 
@@ -457,7 +508,7 @@ export default function ReviewsPage() {
                                 Reseñas de Productos
                             </h1>
                             <p className="text-gray-600 mt-2 text-lg">
-                                Descubre experiencias reales de usuarios verificados
+                                Descubre experiencias reales con bicicletas y motocicletas
                             </p>
                         </div>
                         <button
@@ -484,10 +535,10 @@ export default function ReviewsPage() {
                                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="text"
-                                    placeholder="Buscar reseñas, productos o usuarios..."
+                                    placeholder="Buscar por producto, usuario o comentario..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white/50 backdrop-blur-sm"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white/50 backdrop-blur-sm text-black placeholder-gray-500"
                                 />
                             </div>
                         </div>
@@ -496,29 +547,46 @@ export default function ReviewsPage() {
                         <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
                             <div className="flex items-center space-x-3">
                                 <Filter size={18} className="text-gray-500" />
+                                
+                                {/* Filtro por categoría */}
+                                <select
+                                    value={filterCategory}
+                                    onChange={(e) => setFilterCategory(e.target.value)}
+                                    className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white/70 backdrop-blur-sm text-black"
+                                >
+                                    <option className="text-black" value="all">Todas las categorías</option>
+                                    {categories.map(category => (
+                                        <option key={category.id} className="text-black" value={category.id.toString()}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {/* Filtro por rating */}
                                 <select
                                     value={filterRating}
                                     onChange={(e) => setFilterRating(e.target.value)}
-                                    className="border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm"
+                                    className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white/70 backdrop-blur-sm text-black"
                                 >
-                                    <option value="all">Todas las estrellas</option>
-                                    <option value="5">⭐⭐⭐⭐⭐</option>
-                                    <option value="4">⭐⭐⭐⭐ y más</option>
-                                    <option value="3">⭐⭐⭐ y más</option>
-                                    <option value="2">⭐⭐ y más</option>
+                                    <option className="text-black" value="all">Todas las estrellas</option>
+                                    <option className="text-black" value="5">⭐⭐⭐⭐⭐</option>
+                                    <option className="text-black" value="4">⭐⭐⭐⭐ y más</option>
+                                    <option className="text-black" value="3">⭐⭐⭐ y más</option>
+                                    <option className="text-black" value="2">⭐⭐ y más</option>
                                 </select>
                             </div>
 
+                            {/* Ordenamiento */}
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
-                                className="border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm"
+                                className="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white/70 backdrop-blur-sm text-black"
                             >
-                                <option value="newest">Más recientes</option>
-                                <option value="oldest">Más antiguas</option>
-                                <option value="rating-high">Mejor valoradas</option>
-                                <option value="rating-low">Menor valoración</option>
-                                <option value="likes">Más útiles</option>
+                                <option className="text-black" value="newest">Más recientes</option>
+                                <option className="text-black" value="oldest">Más antiguas</option>
+                                <option className="text-black" value="rating-high">Mejor valoradas</option>
+                                <option className="text-black" value="rating-low">Menor valoración</option>
+                                <option className="text-black" value="likes">Más útiles</option>
                             </select>
                         </div>
                     </div>
@@ -539,12 +607,12 @@ export default function ReviewsPage() {
                             <MessageSquare size={64} className="mx-auto text-gray-400 mb-6" />
                             <h3 className="text-2xl font-bold text-gray-600 mb-3">No se encontraron reseñas</h3>
                             <p className="text-gray-500 mb-6">
-                                {searchTerm || filterRating !== 'all'
+                                {searchTerm || filterRating !== 'all' || filterCategory !== 'all'
                                     ? 'Intenta ajustar los filtros de búsqueda'
                                     : 'Sé el primero en escribir una reseña'
                                 }
                             </p>
-                            {!searchTerm && filterRating === 'all' && (
+                            {!searchTerm && filterRating === 'all' && filterCategory === 'all' && (
                                 <button
                                     onClick={() => setShowCreateModal(true)}
                                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200"

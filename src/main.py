@@ -12,4 +12,3 @@ app.include_router(users_router)
 app.include_router(products_router)
 app.include_router(reviews_router)
 app.include_router(categories_router)
-    
