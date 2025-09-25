@@ -6,9 +6,10 @@ class Review(Base):
     __tablename__ = "reviews"
 
     id = Column(Integer, primary_key=True, index=True)
-    rating = Column(Integer, nullable=False)  # 1 a 5
+    rating = Column(Integer, nullable=False)
     comment = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    content = Column(String, nullable=False) 
     product_id = Column(Integer, ForeignKey("products.id"))
 
     # relaciones

@@ -12,7 +12,8 @@ import {
     TrendingUp,
     Award,
     Users,
-    BarChart3
+    BarChart3,
+    AlertCircle
 } from 'lucide-react';
 
 interface Product {
@@ -26,132 +27,118 @@ interface Product {
 interface Category {
     id: number;
     name: string;
+    description?: string;
 }
 
 interface Review {
     id: number;
-    userName: string;
     rating: number;
-    title: string;
     comment: string;
-    date: string;
-    likes: number;
-    productId: number;
-    productName: string;
-    verified?: boolean;
-    categoryId?: number;
+    user_id: number;
+    product_id: number;
+    userName?: string;
+    productName?: string;
     categoryName?: string;
+    date?: string;
+    likes?: number;
+    verified?: boolean;
 }
 
 interface ReviewFormData {
-    userName: string;
     rating: number;
-    title: string;
     comment: string;
-    productId: number;
+    user_id: number;
+    product_id: number;
 }
 
-// Componente principal de la página
-export default function ReviewsPage() {
-    // Datos que corresponden a tu base de datos
-    const dbProducts: Product[] = [
-        { id: 1, name: 'Orbea Alma', description: 'Bicicleta de montaña ligera', category_id: 1 },
-        { id: 2, name: 'Orbea Orca', description: 'Bicicleta de carretera de alto rendimiento', category_id: 1 },
-        { id: 3, name: 'Moto CB 190R 2.0', description: 'Motocicleta deportiva', category_id: 2 },
-        { id: 4, name: 'Moto CB 190R 2.0', description: 'Motocicleta deportiva', category_id: 2 },
-        { id: 5, name: 'Moto Todoterreno', description: 'Motocicleta para todo terreno', category_id: 2 },
-        { id: 6, name: 'Moto Todoterreno', description: 'Motocicleta para todo terreno', category_id: 2 }
-    ];
+interface User {
+    id: number;
+    name: string;
+    email?: string;
+}
 
-    const categories: Category[] = [
-        { id: 1, name: 'Bicicletas' },
-        { id: 2, name: 'Motocicletas' }
-    ];
+// Configuración de la API
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
-    // Datos de reseñas de ejemplo adaptados a los productos reales
-    const mockReviews: Review[] = [
-        {
-            id: 1,
-            userName: 'María González',
-            rating: 5,
-            title: 'Excelente bicicleta para montaña',
-            comment: 'La Orbea Alma es increíblemente ligera y perfecta para rutas de montaña. El rendimiento es excepcional y la calidad de construcción es premium. La recomiendo totalmente para ciclistas serios.',
-            date: '2025-09-10',
-            likes: 24,
-            productId: 1,
-            productName: 'Orbea Alma',
-            verified: true,
-            categoryId: 1,
-            categoryName: 'Bicicletas'
-        },
-        {
-            id: 2,
-            userName: 'Carlos Rodríguez',
-            rating: 4,
-            title: 'Muy buena para carretera',
-            comment: 'La Orbea Orca tiene un rendimiento excelente en carretera. Es rápida y cómoda para distancias largas. El único detalle es que requiere un mantenimiento más frecuente.',
-            date: '2025-09-08',
-            likes: 18,
-            productId: 2,
-            productName: 'Orbea Orca',
-            verified: true,
-            categoryId: 1,
-            categoryName: 'Bicicletas'
-        },
-        {
-            id: 3,
-            userName: 'Ana López',
-            rating: 3,
-            title: 'Cumple pero sin sorprender',
-            comment: 'La CB 190R está bien para el precio, pero esperaba un poco más de potencia. Es cómoda para la ciudad y consume poco combustible.',
-            date: '2025-09-05',
-            likes: 7,
-            productId: 3,
-            productName: 'Moto CB 190R 2.0',
-            verified: false,
-            categoryId: 2,
-            categoryName: 'Motocicletas'
-        },
-        {
-            id: 4,
-            userName: 'Diego Martínez',
-            rating: 5,
-            title: 'Perfecta para aventuras',
-            comment: 'La moto todoterreno es increíble. He llevado por caminos difíciles y responde perfectamente. La suspensión es excelente y el motor muy confiable.',
-            date: '2025-09-03',
-            likes: 31,
-            productId: 5,
-            productName: 'Moto Todoterreno',
-            verified: true,
-            categoryId: 2,
-            categoryName: 'Motocicletas'
+// Funciones de API
+const apiClient = {
+    async get(endpoint: string) {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-    ];
+        return response.json();
+    },
 
-    const [reviews, setReviews] = useState<Review[]>(mockReviews);
-    const [filteredReviews, setFilteredReviews] = useState<Review[]>(mockReviews);
-    const [products, setProducts] = useState<Product[]>(dbProducts);
+    async post(endpoint: string, data: any) {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    }
+};
+
+export default function ReviewsPage() {
+    // Estados
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [filteredReviews, setFilteredReviews] = useState<Review[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRating, setFilterRating] = useState('all');
     const [filterCategory, setFilterCategory] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     // Cargar datos al montar el componente
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
+            setError(null);
             try {
-                // Simulamos delay de carga
-                await new Promise(resolve => setTimeout(resolve, 500));
-                // En una aplicación real, aquí harías las llamadas a tu API
-                // const productsResponse = await fetch('/api/products');
-                // const reviewsResponse = await fetch('/api/reviews');
-                // setProducts(await productsResponse.json());
-                // setReviews(await reviewsResponse.json());
+                // Cargar datos en paralelo
+                const [categoriesData, productsData, reviewsData, usersData] = await Promise.all([
+                    apiClient.get('/categories/'),
+                    apiClient.get('/products/'),
+                    apiClient.get('/reviews/'),
+                    apiClient.get('/users/')
+                ]);
+
+                setCategories(categoriesData);
+                setProducts(productsData);
+                setUsers(usersData);
+
+                // Enriquecer reviews con datos relacionados
+                const enrichedReviews = reviewsData.map((review: Review) => {
+                    const product = productsData.find((p: Product) => p.id === review.product_id);
+                    const category = categoriesData.find((c: Category) => c.id === product?.category_id);
+                    const user = usersData.find((u: User) => u.id === review.user_id);
+                    
+                    return {
+                        ...review,
+                        userName: user?.username || `Usuario ${review.user_id}`,
+                        productName: product?.name || `Producto ${review.product_id}`,
+                        categoryName: category?.name,
+                        date: new Date().toISOString().split('T')[0], // Simular fecha
+                        likes: Math.floor(Math.random() * 50), // Simular likes
+                        verified: Math.random() > 0.5 // Simular verificación
+                    };
+                });
+
+                setReviews(enrichedReviews);
             } catch (error) {
                 console.error('Error loading data:', error);
+                setError('Error al cargar los datos. Por favor, verifica que el backend esté ejecutándose en http://localhost:8000');
             } finally {
                 setLoading(false);
             }
@@ -171,10 +158,9 @@ export default function ReviewsPage() {
         // Filtrar por búsqueda
         if (searchTerm) {
             filtered = filtered.filter(review =>
-                review.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 review.comment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                review.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                review.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                review.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                review.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 review.categoryName?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
@@ -186,22 +172,26 @@ export default function ReviewsPage() {
 
         // Filtrar por categoría
         if (filterCategory !== 'all') {
-            filtered = filtered.filter(review => review.categoryId === parseInt(filterCategory));
+            const categoryId = parseInt(filterCategory);
+            filtered = filtered.filter(review => {
+                const product = products.find(p => p.id === review.product_id);
+                return product?.category_id === categoryId;
+            });
         }
 
         // Ordenar
         filtered.sort((a, b) => {
             switch (sortBy) {
                 case 'newest':
-                    return new Date(b.date).getTime() - new Date(a.date).getTime();
+                    return b.id - a.id; // Ordenar por ID descendente como proxy de fecha
                 case 'oldest':
-                    return new Date(a.date).getTime() - new Date(b.date).getTime();
+                    return a.id - b.id;
                 case 'rating-high':
                     return b.rating - a.rating;
                 case 'rating-low':
                     return a.rating - b.rating;
                 case 'likes':
-                    return b.likes - a.likes;
+                    return (b.likes || 0) - (a.likes || 0);
                 default:
                     return 0;
             }
@@ -240,45 +230,51 @@ export default function ReviewsPage() {
     // Modal para crear nueva reseña
     const CreateReviewModal: React.FC = () => {
         const [formData, setFormData] = useState<ReviewFormData>({
-            userName: '',
             rating: 5,
-            title: '',
             comment: '',
-            productId: 0
+            user_id: users.length > 0 ? users[0].id : 1, // Usar primer usuario disponible
+            product_id: 0
         });
+        const [submitting, setSubmitting] = useState(false);
 
         const handleSubmit = async () => {
-            if (!formData.userName || !formData.productId || !formData.title || !formData.comment) {
+            if (!formData.product_id || !formData.comment.trim()) {
                 alert('Por favor completa todos los campos');
                 return;
             }
 
+            setSubmitting(true);
             try {
-                const selectedProduct = products.find(p => p.id === formData.productId);
-                const selectedCategory = categories.find(c => c.id === selectedProduct?.category_id);
-
-                const newReview: Review = {
-                    ...formData,
-                    id: Math.max(...reviews.map(r => r.id)) + 1,
+                const newReview = await apiClient.post('/reviews/', formData);
+                
+                // Enriquecer la nueva reseña con datos relacionados
+                const product = products.find(p => p.id === formData.product_id);
+                const category = categories.find(c => c.id === product?.category_id);
+                const user = users.find(u => u.id === formData.user_id);
+                
+                const enrichedReview = {
+                    ...newReview,
+                    userName: user?.name || `Usuario ${formData.user_id}`,
+                    productName: product?.name || `Producto ${formData.product_id}`,
+                    categoryName: category?.name,
                     date: new Date().toISOString().split('T')[0],
                     likes: 0,
-                    productName: selectedProduct?.name || '',
-                    verified: false,
-                    categoryId: selectedProduct?.category_id,
-                    categoryName: selectedCategory?.name
+                    verified: false
                 };
 
-                setReviews([newReview, ...reviews]);
+                setReviews([enrichedReview, ...reviews]);
                 setShowCreateModal(false);
                 setFormData({
-                    userName: '',
                     rating: 5,
-                    title: '',
                     comment: '',
-                    productId: 0
+                    user_id: users.length > 0 ? users[0].id : 1,
+                    product_id: 0
                 });
             } catch (error) {
                 console.error('Error creating review:', error);
+                alert('Error al crear la reseña. Verifica que el backend esté funcionando.');
+            } finally {
+                setSubmitting(false);
             }
         };
 
@@ -292,15 +288,19 @@ export default function ReviewsPage() {
                     <div className="space-y-5">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Tu nombre
+                                Usuario
                             </label>
-                            <input
-                                type="text"
-                                value={formData.userName}
-                                onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black placeholder-gray-500"
-                                placeholder="Escribe tu nombre"
-                            />
+                            <select
+                                value={formData.user_id}
+                                onChange={(e) => setFormData({ ...formData, user_id: parseInt(e.target.value) })}
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
+                            >
+                                {users.map((user) => (
+                                    <option key={user.id} value={user.id} className="text-black">
+                                        {user.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
@@ -308,8 +308,8 @@ export default function ReviewsPage() {
                                 Producto
                             </label>
                             <select
-                                value={formData.productId}
-                                onChange={(e) => setFormData({ ...formData, productId: parseInt(e.target.value) })}
+                                value={formData.product_id}
+                                onChange={(e) => setFormData({ ...formData, product_id: parseInt(e.target.value) })}
                                 className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black"
                             >
                                 <option value={0} className="text-gray-500">Selecciona un producto</option>
@@ -335,19 +335,6 @@ export default function ReviewsPage() {
 
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Título de tu reseña
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-black placeholder-gray-500"
-                                placeholder="Resume tu experiencia en una línea"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 Tu comentario
                             </label>
                             <textarea
@@ -362,13 +349,15 @@ export default function ReviewsPage() {
                         <div className="flex space-x-3 pt-4">
                             <button
                                 onClick={handleSubmit}
-                                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
+                                disabled={submitting}
+                                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                             >
-                                Publicar Reseña
+                                {submitting ? 'Publicando...' : 'Publicar Reseña'}
                             </button>
                             <button
                                 onClick={() => setShowCreateModal(false)}
-                                className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
+                                disabled={submitting}
+                                className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 disabled:opacity-50"
                             >
                                 Cancelar
                             </button>
@@ -385,7 +374,7 @@ export default function ReviewsPage() {
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                        {review.userName.charAt(0).toUpperCase()}
+                        {review.userName?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div>
                         <div className="flex items-center space-x-2">
@@ -407,11 +396,7 @@ export default function ReviewsPage() {
                 </div>
                 <div className="flex items-center space-x-2 text-gray-500 text-sm">
                     <Calendar size={16} />
-                    <span>{new Date(review.date).toLocaleDateString('es-ES', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                    })}</span>
+                    <span>{review.date ? new Date(review.date).toLocaleDateString('es-ES') : 'Hoy'}</span>
                 </div>
             </div>
 
@@ -419,13 +404,12 @@ export default function ReviewsPage() {
                 <StarRating rating={review.rating} size="medium" />
             </div>
 
-            <h3 className="font-bold text-lg text-gray-900 mb-3 line-clamp-2">{review.title}</h3>
-            <p className="text-gray-700 mb-4 leading-relaxed line-clamp-3">{review.comment}</p>
+            <p className="text-gray-700 mb-4 leading-relaxed">{review.comment}</p>
 
             <div className="flex items-center justify-between">
                 <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-600 transition-colors">
                     <ThumbsUp size={16} />
-                    <span className="text-sm font-medium">{review.likes} útiles</span>
+                    <span className="text-sm font-medium">{review.likes || 0} útiles</span>
                 </button>
             </div>
         </div>
@@ -488,7 +472,6 @@ export default function ReviewsPage() {
                 </div>
             </div>
             <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
-            <div className="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
             <div className="h-16 bg-gray-200 rounded mb-4"></div>
             <div className="flex justify-between">
                 <div className="h-4 bg-gray-200 rounded w-16"></div>
@@ -496,6 +479,35 @@ export default function ReviewsPage() {
             </div>
         </div>
     );
+
+    // Error component
+    const ErrorMessage: React.FC = () => (
+        <div className="text-center py-16">
+            <AlertCircle size={64} className="mx-auto text-red-400 mb-6" />
+            <h3 className="text-2xl font-bold text-gray-600 mb-3">Error de conexión</h3>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">{error}</p>
+            <div className="space-y-4">
+                <button
+                    onClick={() => window.location.reload()}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200"
+                >
+                    Reintentar
+                </button>
+                <div className="text-sm text-gray-400">
+                    <p>Asegúrate de que tu backend FastAPI esté ejecutándose</p>
+                    <p>Comando: <code className="bg-gray-100 px-2 py-1 rounded">uvicorn main:app --reload</code></p>
+                </div>
+            </div>
+        </div>
+    );
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center">
+                <ErrorMessage />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
@@ -513,7 +525,8 @@ export default function ReviewsPage() {
                         </div>
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2"
+                            disabled={loading}
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
                             <Plus size={20} />
                             <span>Escribir Reseña</span>

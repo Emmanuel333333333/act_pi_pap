@@ -3,6 +3,7 @@ from pydantic import BaseModel
 class ReviewBase(BaseModel):
     content: str
     rating: int
+    comment: str | None = None
 
 class ReviewCreate(ReviewBase):
     user_id: int
