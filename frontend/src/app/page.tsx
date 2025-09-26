@@ -53,8 +53,9 @@ interface ReviewFormData {
 
 interface User {
     id: number;
-    name: string;
+    username: string;   // 👈 igual al backend
     email?: string;
+    role?: string;
 }
 
 // Configuración de la API
@@ -254,7 +255,7 @@ export default function ReviewsPage() {
                 
                 const enrichedReview = {
                     ...newReview,
-                    userName: user?.name || `Usuario ${formData.user_id}`,
+                    userName: user?.username || `Usuario ${formData.user_id}`,
                     productName: product?.name || `Producto ${formData.product_id}`,
                     categoryName: category?.name,
                     date: new Date().toISOString().split('T')[0],
@@ -297,7 +298,7 @@ export default function ReviewsPage() {
                             >
                                 {users.map((user) => (
                                     <option key={user.id} value={user.id} className="text-black">
-                                        {user.name}
+                                        {user.username}
                                     </option>
                                 ))}
                             </select>
@@ -495,7 +496,7 @@ export default function ReviewsPage() {
                 </button>
                 <div className="text-sm text-gray-400">
                     <p>Asegúrate de que tu backend FastAPI esté ejecutándose</p>
-                    <p>Comando: <code className="bg-gray-100 px-2 py-1 rounded">uvicorn main:app --reload</code></p>
+                    <p>Comando: <code className="bg-gray-100 px-2 py-1 rounded">uvicorn src.main:app --reload</code></p>
                 </div>
             </div>
         </div>
