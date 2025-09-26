@@ -8,13 +8,13 @@ class UserRole(str, Enum):
 class UserBase(BaseModel):
     username: str
     email: EmailStr
-
+    role: UserRole = UserRole.user
+    
 class UserCreate(UserBase):
     password: str
 
 class UserRead(UserBase):
     id: int
-    is_active: bool
 
     class Config:
         from_attributes = True

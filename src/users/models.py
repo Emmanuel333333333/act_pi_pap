@@ -8,8 +8,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, nullable=False, index=True)
     email = Column(String, unique=True, nullable=False, index=True)
-    is_active = Column(Boolean, default=True)
     hashed_password = Column(String, nullable=False)
+    role = Column(String, default="user", nullable=False)
 
     # relaciones
     reviews = relationship("Review", back_populates="user")

@@ -9,9 +9,8 @@ class Review(Base):
     rating = Column(Integer, nullable=False)
     comment = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    content = Column(String, nullable=False) 
     product_id = Column(Integer, ForeignKey("products.id"))
 
-    # relaciones
+    # Relaciones
     user = relationship("User", back_populates="reviews")
     product = relationship("Product", back_populates="reviews")
