@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     class Config:
-        env_file = ".env"   # 👈 usa tu archivo .env real (no .env.example)
+        env_file = ".env.example"   # 👈 usa tu archivo .env real (no .env.example)
 
 
 settings = Settings()
