@@ -16,18 +16,26 @@ import {
     AlertCircle
 } from 'lucide-react';
 
-interface Product {
-    id: number;
-    name: string;
-    description: string;
-    category_id: number;
-    category_name?: string;
-}
-
+// Interfaces alineadas con el backend FastAPI
 interface Category {
     id: number;
     name: string;
     description?: string;
+}
+
+interface User {
+    id: number;
+    username: string;
+    email?: string;
+    role?: string;
+}
+
+interface Product {
+    id: number;
+    name: string;
+    description?: string;
+    category_id?: number;
+    category?: Category; // Categoria anidada que viene del backend
 }
 
 interface Review {
@@ -36,9 +44,9 @@ interface Review {
     comment: string;
     user_id: number;
     product_id: number;
-    userName?: string;
-    productName?: string;
-    categoryName?: string;
+    user?: User; // Usuario anidado que viene del backend
+    product?: Product; // Producto anidado que viene del backend
+    // Propiedades adicionales para la UI
     date?: string;
     likes?: number;
     verified?: boolean;
@@ -51,38 +59,41 @@ interface ReviewFormData {
     product_id: number;
 }
 
-interface User {
-    id: number;
-    username: string;   // 👈 igual al backend
-    email?: string;
-    role?: string;
-}
-
 // Configuración de la API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
-// Funciones de API
+// Funciones de API mejoradas con manejo de errores
 const apiClient = {
     async get(endpoint: string) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error fetching ${endpoint}:`, error);
+            throw error;
         }
-        return response.json();
     },
 
     async post(endpoint: string, data: any) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error posting to ${endpoint}:`, error);
+            throw error;
         }
-        return response.json();
     }
 };
 
@@ -108,10 +119,9 @@ export default function ReviewsPage() {
             setError(null);
             try {
                 // Cargar datos en paralelo
-                const [categoriesData, productsData, reviewsData, usersData] = await Promise.all([
+                const [categoriesData, productsData, usersData] = await Promise.all([
                     apiClient.get('/categories/'),
                     apiClient.get('/products/'),
-                    apiClient.get('/reviews/'),
                     apiClient.get('/users/')
                 ]);
 
@@ -119,27 +129,28 @@ export default function ReviewsPage() {
                 setProducts(productsData);
                 setUsers(usersData);
 
-                // Enriquecer reviews con datos relacionados
-                const enrichedReviews = reviewsData.map((review: Review) => {
-                    const product = productsData.find((p: Product) => p.id === review.product_id);
-                    const category = categoriesData.find((c: Category) => c.id === product?.category_id);
-                    const user = usersData.find((u: User) => u.id === review.user_id);
+                // Cargar reseñas (que ya vienen con datos anidados del backend)
+                try {
+                    const reviewsData = await apiClient.get('/reviews/');
                     
-                    return {
+                    // Enriquecer con datos adicionales para la UI
+                    const enrichedReviews = reviewsData.map((review: Review) => ({
                         ...review,
-                        userName: user?.username || `Usuario ${review.user_id}`,
-                        productName: product?.name || `Producto ${review.product_id}`,
-                        categoryName: category?.name,
                         date: new Date().toISOString().split('T')[0], // Simular fecha
                         likes: Math.floor(Math.random() * 50), // Simular likes
                         verified: Math.random() > 0.5 // Simular verificación
-                    };
-                });
+                    }));
 
-                setReviews(enrichedReviews);
+                    setReviews(enrichedReviews);
+                } catch (reviewError) {
+                    // Si no hay reseñas, no es un error crítico
+                    console.log('No reviews found or error loading reviews:', reviewError);
+                    setReviews([]);
+                }
+
             } catch (error) {
                 console.error('Error loading data:', error);
-                setError('Error al cargar los datos. Por favor, verifica que el backend esté ejecutándose en http://localhost:8000');
+                setError('Error al conectar con el backend. Asegúrate de que el servidor FastAPI esté ejecutándose en http://127.0.0.1:8000');
             } finally {
                 setLoading(false);
             }
@@ -158,11 +169,12 @@ export default function ReviewsPage() {
 
         // Filtrar por búsqueda
         if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
             filtered = filtered.filter(review =>
-                review.comment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                review.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                review.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                review.categoryName?.toLowerCase().includes(searchTerm.toLowerCase())
+                review.comment?.toLowerCase().includes(searchLower) ||
+                review.user?.username?.toLowerCase().includes(searchLower) ||
+                review.product?.name?.toLowerCase().includes(searchLower) ||
+                review.product?.category?.name?.toLowerCase().includes(searchLower)
             );
         }
 
@@ -174,10 +186,7 @@ export default function ReviewsPage() {
         // Filtrar por categoría
         if (filterCategory !== 'all') {
             const categoryId = parseInt(filterCategory);
-            filtered = filtered.filter(review => {
-                const product = products.find(p => p.id === review.product_id);
-                return product?.category_id === categoryId;
-            });
+            filtered = filtered.filter(review => review.product?.category?.id === categoryId);
         }
 
         // Ordenar
@@ -233,7 +242,7 @@ export default function ReviewsPage() {
         const [formData, setFormData] = useState<ReviewFormData>({
             rating: 5,
             comment: '',
-            user_id: users.length > 0 ? users[0].id : 1, // Usar primer usuario disponible
+            user_id: users.length > 0 ? users[0].id : 1,
             product_id: 0
         });
         const [submitting, setSubmitting] = useState(false);
@@ -248,16 +257,9 @@ export default function ReviewsPage() {
             try {
                 const newReview = await apiClient.post('/reviews/', formData);
                 
-                // Enriquecer la nueva reseña con datos relacionados
-                const product = products.find(p => p.id === formData.product_id);
-                const category = categories.find(c => c.id === product?.category_id);
-                const user = users.find(u => u.id === formData.user_id);
-                
+                // El backend ya devuelve la reseña con datos anidados
                 const enrichedReview = {
                     ...newReview,
-                    userName: user?.username || `Usuario ${formData.user_id}`,
-                    productName: product?.name || `Producto ${formData.product_id}`,
-                    categoryName: category?.name,
                     date: new Date().toISOString().split('T')[0],
                     likes: 0,
                     verified: false
@@ -316,7 +318,7 @@ export default function ReviewsPage() {
                                 <option value={0} className="text-gray-500">Selecciona un producto</option>
                                 {products.map((product) => (
                                     <option key={product.id} value={product.id} className="text-black">
-                                        {product.name} - {product.description}
+                                        {product.name} {product.description ? `- ${product.description}` : ''}
                                     </option>
                                 ))}
                             </select>
@@ -375,11 +377,13 @@ export default function ReviewsPage() {
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                        {review.userName?.charAt(0).toUpperCase() || 'U'}
+                        {review.user?.username?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div>
                         <div className="flex items-center space-x-2">
-                            <h4 className="font-semibold text-gray-900">{review.userName}</h4>
+                            <h4 className="font-semibold text-gray-900">
+                                {review.user?.username || `Usuario ${review.user_id}`}
+                            </h4>
                             {review.verified && (
                                 <div className="flex items-center space-x-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
                                     <Award size={12} />
@@ -387,10 +391,12 @@ export default function ReviewsPage() {
                                 </div>
                             )}
                         </div>
-                        <p className="text-sm text-gray-600 font-medium">{review.productName}</p>
-                        {review.categoryName && (
+                        <p className="text-sm text-gray-600 font-medium">
+                            {review.product?.name || `Producto ${review.product_id}`}
+                        </p>
+                        {review.product?.category?.name && (
                             <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                                {review.categoryName}
+                                {review.product.category.name}
                             </span>
                         )}
                     </div>
@@ -405,7 +411,9 @@ export default function ReviewsPage() {
                 <StarRating rating={review.rating} size="medium" />
             </div>
 
-            <p className="text-gray-700 mb-4 leading-relaxed">{review.comment}</p>
+            <p className="text-gray-700 mb-4 leading-relaxed">
+                {review.comment || 'Sin comentario'}
+            </p>
 
             <div className="flex items-center justify-between">
                 <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-600 transition-colors">
@@ -494,9 +502,10 @@ export default function ReviewsPage() {
                 >
                     Reintentar
                 </button>
-                <div className="text-sm text-gray-400">
+                <div className="text-sm text-gray-400 space-y-1">
                     <p>Asegúrate de que tu backend FastAPI esté ejecutándose</p>
-                    <p>Comando: <code className="bg-gray-100 px-2 py-1 rounded">uvicorn src.main:app --reload</code></p>
+                    <p>Comando: <code className="bg-gray-100 px-2 py-1 rounded text-xs">uvicorn src.main:app --reload</code></p>
+                    <p>URL: <code className="bg-gray-100 px-2 py-1 rounded text-xs">http://127.0.0.1:8000</code></p>
                 </div>
             </div>
         </div>
@@ -521,7 +530,7 @@ export default function ReviewsPage() {
                                 Reseñas de Productos
                             </h1>
                             <p className="text-gray-600 mt-2 text-lg">
-                                Descubre experiencias reales con bicicletas y motocicletas
+                                Descubre experiencias reales con bicicletas y accesorios
                             </p>
                         </div>
                         <button
